@@ -6,6 +6,7 @@ var should = require('should');
 var express = require('express');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
+var multer = require('multer');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -768,6 +769,45 @@ describe('request(app)', function() {
           done();
         });
       });
+    });
+  });
+
+  describe('.attach(name, file, filename)', function() {
+    var file = path.join(__dirname, 'fixtures/attach-file.txt');
+    var fileContent = fs.readFileSync(file);
+    var actualContent;
+
+    it('should send file', function(done) {
+      var app = express();
+      app.post('/', multer({ storage: multer.memoryStorage() }).single('file'), function(req, res) {
+        actualContent = req.file.buffer;
+        res.end();
+      });
+
+      request(app)
+        .post('/')
+        .attach('file', file, 'file.txt')
+        .end(function(err) {
+          should.not.exists(err);
+          actualContent.should.eql(fileContent);
+          done();
+        });
+    });
+
+    it('should work when server does not consume all of request body', function(done) {
+      var app = express();
+      app.post('/moga', function(req, res) {
+        res.status(200).end();
+      });
+
+      request(app)
+        .post('/moga')
+        .attach('file', file, 'file.txt')
+        .end(function(err) {
+          if (err) return done(err);
+          actualContent.should.eql(fileContent);
+          done();
+        });
     });
   });
 });
